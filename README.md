@@ -18,5 +18,5 @@ during this study are not publicly available in order to protect the locations
 and resources of a critically endangered species but may be made privately 
 available by me, the corresponding author, on reasonable request. The MODIS 
 imagery analyzed is freely available from [NASA](https://modis.gsfc.nasa.gov/data/dataprod/mod13.php). 
-The global ecoregions shapefile used in Figure 1 is [freely available](ecoregions2017.appspot.com)
+The global ecoregions shapefile used in Figure 1 is [freely available](http://ecoregions2017.appspot.com)
 and licensed under [CC-BY 4.0](https://creativecommons.org/licenses/by/4.0/). 
