@@ -10,8 +10,8 @@ library(ggsn) # for spatial scale and coordinate arrow
 ########### Source Analysis Scripts ##########
 source("DataParsing_Script.R") # defines all_rhinos, namib_eco
 source("24hrDisplacement_Script.R") # defines: chosen9, lag4, ToD
-source("16dayRecursion_Script.R") # defines: biweekly, tumaps
-source("AnnualRecursion_HomeRange_Script.R") #  defines: df_3visits
+source("16dayRecursion_HomeRange_Script.R") # defines: biweekly, tumaps
+source("AnnualRecursion_Script.R") #  defines: df_3visits
 
 ####### Figures #######
 
@@ -115,7 +115,7 @@ ggplot(lag4) +
 
 #### Figure 6.
 # T-Locoh  TimeUse Plot.
-par(mfrow = c(1,2))
+par(mfrow = c(1, 2))
 plot(tumaps$`SAT189-2011-305`$result)
 dev.off()
 
