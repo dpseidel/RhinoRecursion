@@ -4,7 +4,7 @@ Mesoscale movement and recursion behaviors of Namibian black rhinos
 =======================================================================
 
 This repository contains the source code of analyses contained within my 
-manuscript with Wayne LinkLater, Werner Killan, Pierre du Preez, and Wayne M. Getz, 
+manuscript with Wayne Linklater, Werner Kilian, Pierre du Preez, and Wayne M. Getz, 
 submitted for consideration to Movement Ecology's BioMove Special Edition in
 May 2019. 
 
