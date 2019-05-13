@@ -101,7 +101,8 @@ chosen9 %>%
     title = "Dawn-Dawn 24-displacement through time",
     x = " 24-hr displacement (m)"
   ) +
-  theme(plot.title = element_text(hjust = .5), legend.position = "none", panel.spacing = unit(1, "lines"))
+  theme(plot.title = element_text(hjust = .5), legend.position = "none", panel.spacing = unit(1, "lines"),
+        plot.margin = margin(10, 15, 10, 10))
 dev.off()
 
 ####  Fig. 5
