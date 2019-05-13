@@ -1,4 +1,4 @@
-<!---[![DOI](https://zenodo.org/badge/DOI/10.5281/zenodo.1185383.svg)](https://doi.org/10.5281/zenodo.1185383) --->
+[![DOI](https://zenodo.org/badge/186065167.svg)](https://zenodo.org/badge/latestdoi/186065167)
 
 Mesoscale movement and recursion behaviors of Namibian black rhinos
 =======================================================================
