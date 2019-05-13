@@ -7,6 +7,11 @@ source("DataParsing_Script.R")
 library(tlocoh)
 library(tlocoh.dev)
 
+year_rhinos <- all_rhinos %>% group_by(id) %>% summarize(
+  start = min(date), end = max(date), 
+  days = difftime(end, start)
+) %>% filter(days > 360) %>% pull(id)
+
 rec_rhinos <- all_rhinos %>% 
   filter(id %in% year_rhinos[c(1:2, 4:7)],
          date >= ymd("2012-04-01"), 
@@ -19,7 +24,7 @@ map_tu <- function(df, ivg){
   lxy <- xyt.lxy(xy = matrix(c(df$x, df$y), ncol = 2), 
                  dt = df$date,
                  id = df$id, 
-                 proj4string = CRS("+proj=utm +zone=33 +south"))
+                 proj4string = CRS("+init=epsg:32733"))
   lxy.tumap(lxy, ivg=ivg, grid = "square", cellsize = 1000)
 }
 
@@ -35,6 +40,8 @@ grids <- pmap(list(x = tumaps_sf, y= names(tumaps_sf)),
                   filter(nsv.604800 > 2, is.na(waterhole))
                 return(t)
               })
+
+rhino_list <- all_rhinos %>% filter(id %in% year_rhinos[1:7]) %>% split(.$id)
 
 joins <- pmap(list(grid = grids, pts = rhino_list[c(1:2, 4:7)]), 
               function(grid, pts){

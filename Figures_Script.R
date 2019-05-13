@@ -141,14 +141,14 @@ filter(biweekly, nsv.43200 > 1) %>%
   theme(plot.title = element_text(hjust = .5))
 
 #### Figure 8:
-ggplot(filter(df_3visits, sv == T) %>%
-  group_by(id.x) %>%
-  mutate(num = length(unique(grid.id)))) +
-  geom_histogram(aes(x = diff_days, fill = cut(nsv, breaks = 10, dig.lab = 1)), binwidth = 7) +
-  geom_text(x = 275, y = 185, aes(label = paste(num, "cells")), size = 3.5) +
-  facet_wrap(. ~ as.factor(id.x)) + theme_minimal() +
-  scale_fill_viridis_d("Number of\nseparate visits") +
-  labs(
-    x = "Time between visits (days)",
-    title = "Annual recursion: time to to return across individuals"
-  )
+ggplot(filter(df_3visits, sv == T) %>% group_by(id.x) %>% 
+         mutate(num = length(unique(grid.id)))) + 
+  geom_histogram(aes(x = diff_days, fill = cut(nsv, breaks = 10, dig.lab = 1)), binwidth = 7) + 
+  geom_text(x= 275, y = 185, aes(label = paste(num, "cells")), size = 3.5) +
+  facet_wrap(. ~ as.factor(id.x)) +
+  scale_fill_manual("Number of\nseparate visits", 
+                    values = colorRampPalette(c("#08306b", "#9ecae1"))(9)) +
+  theme_minimal() +
+  labs(x = "Time between visits (days)", 
+       title = "Annual recursion: time to to return across individuals") +
+  theme(plot.title = element_text(hjust = .5))
