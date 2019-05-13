@@ -68,9 +68,9 @@ chosen9 %>%
   labs(
     title = "Dawn-Dawn 24-displacement through time",
     x = "Julian day", y = " 24-hr displacement (m)",
-    caption = "Note: A signle observation approaching 30km displacement was cut off from SAT277's graph to maintain comparable scales"
+    caption = "Note: A single observation approaching 30 km displacement was cut off from SAT277's graph to maintain comparable scales"
   ) +
-  theme(plot.title = element_text(hjust = .5), legend.position = "none")
+  theme(plot.title = element_text(hjust = .5), legend.position = "none", panel.spacing = unit(1, "lines"))
 
 #### Figure 4. Facet Distributions -- distributions
 chosen9 %>%
@@ -101,7 +101,7 @@ chosen9 %>%
     title = "Dawn-Dawn 24-displacement through time",
     x = " 24-hr displacement (m)"
   ) +
-  theme(plot.title = element_text(hjust = .5), legend.position = "none")
+  theme(plot.title = element_text(hjust = .5), legend.position = "none", panel.spacing = unit(1, "lines"))
 dev.off()
 
 ####  Fig. 5
