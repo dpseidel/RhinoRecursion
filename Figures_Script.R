@@ -3,7 +3,7 @@
 ### (submitted to Movement Ecology, BioMove Special Edition)
 ### Author: Dana Paige Seidel
 
-####### Necessary Libraries#######
+####### Necessary Libraries #######
 library(stmove) # package not available on CRAN, see github.com/dpseidel/stmove
 library(ggsn) # for spatial scale and coordinate arrow
 
@@ -151,5 +151,5 @@ ggplot(filter(df_3visits, sv == T) %>% group_by(id.x) %>%
                     values = colorRampPalette(c("#08306b", "#9ecae1"))(9)) +
   theme_minimal() +
   labs(x = "Time between visits (days)", 
-       title = "Annual recursion: time to to return across individuals") +
+       title = "Annual recursion: time to return across individuals") +
   theme(plot.title = element_text(hjust = .5))
