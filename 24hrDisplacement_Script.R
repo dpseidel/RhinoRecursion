@@ -7,7 +7,11 @@ source("DataParsing_Script.R")
 library(caret)
 
 ## Time of Day displacement analysis
-ToDfilter <- all_rhinos  %>% st_set_geometry(NULL) %>% 
+sampling_days <- c(unique(all_rhinos$local_date), ymd("2017-09-20"))
+intervals <- interval(start = ymd_hm(paste(sampling_days - 1, "22:30")), 
+                      end = ymd_hm(paste(sampling_days, "22:30")))
+
+ToDfilter <- all_rhinos %>% st_set_geometry(NULL) %>% 
   mutate(rnd_hour = hour(round_date(date, unit = "1 hour")), 
          ToD = case_when(
            rnd_hour %in% c(23, 0:3) ~ "mid-night",
@@ -23,13 +27,25 @@ ToDfilter <- all_rhinos  %>% st_set_geometry(NULL) %>%
            rnd_hour %in% 17:21 ~ 19,
            TRUE ~ 0
          ),
-         offset_hour = ymd_hms(paste(local_date, local_time)) - 
-           ymd_h(paste(local_date, rnd_hour)),
-         offset_ToD = 
-           ymd_hms(paste(local_date, local_time)) - 
-           ymd_h(paste(local_date, ToD_est))) %>% 
+         offset_hour = case_when(
+           rnd_hour == 0 & hour(date) == 23 ~ difftime(ymd_hms(paste(local_date, local_time)), 
+                                                       ymd_h(paste(local_date + 1, rnd_hour)), 
+                                                       units = "secs"), 
+           TRUE ~ difftime(ymd_hms(paste(local_date, local_time)),
+                           ymd_h(paste(local_date, rnd_hour)),
+                           units = "secs") 
+         ),
+         offset_ToD = case_when(
+           rnd_hour %in% c(0, 23) & hour(date) != 0 ~ difftime(ymd_hms(paste(local_date, local_time)), 
+                                                               ymd_h(paste(local_date + 1, ToD_est)), 
+                                                               units = "secs"), 
+           TRUE ~ difftime(ymd_hms(paste(local_date, local_time)),
+                           ymd_h(paste(local_date, ToD_est)),
+                           units = "secs") 
+         )) %>% 
   filter(ToD != "other") %>% 
-  group_by(id, local_date, ToD) %>% 
+  mutate(interval = map_dbl(date, ~which(.x %within% intervals))) %>% 
+  group_by(id, interval, ToD) %>%  
   mutate(closest =  abs(as.numeric(offset_ToD)) == min(abs(as.numeric(offset_ToD)))) %>% 
   filter(closest) %>% ungroup() %>% 
   mutate(ToD = readr::parse_factor(ToD, ordered = T, levels = c("mid-night", "dawn", "mid-day", "dusk")))
@@ -41,9 +57,6 @@ ToD <- ToDfilter %>% split(.$id) %>%
         arrange(local_date, ToD)) 
 
 lag4 <- ToD %>%
-  keep(., function(x) {
-    na.omit(unique(x$id)) != "SAT645"
-  }) %>% # drop 645, too short, throws error.
   map_df(., function(x) {
     mutate(x,
            dx = c(diff(x), NA),
