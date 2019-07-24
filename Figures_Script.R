@@ -67,7 +67,7 @@ chosen9 %>%
   theme_minimal() +
   labs(
     title = "Dawn-Dawn 24-displacement through time",
-    x = "Julian day", y = " 24-hr displacement (m)",
+    x = "Julian day", y = "24-hr displacement (m)",
     caption = "Note: A single observation approaching 30 km displacement was cut off from SAT277's graph to maintain comparable scales"
   ) +
   theme(plot.title = element_text(hjust = .5), legend.position = "none", panel.spacing = unit(1, "lines"))
