@@ -7,7 +7,8 @@ source("DataParsing_Script.R")
 library(caret)
 
 ## Time of Day displacement analysis
-sampling_days <- c(unique(all_rhinos$local_date), ymd("2017-09-20"))
+sampling_days <- c(seq.Date(from = ymd("2011-10-19"), to = ymd("2014-01-24"), 1), 
+                   seq.Date(from = ymd("2017-06-20"), to = ymd("2018-11-29"), 1))
 intervals <- interval(start = ymd_hm(paste(sampling_days - 1, "22:30")), 
                       end = ymd_hm(paste(sampling_days, "22:30")))
 
@@ -51,14 +52,19 @@ ToDfilter <- all_rhinos %>% st_set_geometry(NULL) %>%
   mutate(ToD = readr::parse_factor(ToD, ordered = T, levels = c("mid-night", "dawn", "mid-day", "dusk")))
 
 ToD <- ToDfilter %>% split(.$id) %>% 
-  map(., ~.x %>% 
-        complete(local_date = seq.Date(from = min(local_date, na.rm = T), to = max(local_date, na.rm = T), 1)) %>% 
-        complete(ToD, nesting(local_date)) %>% filter(!is.na(ToD)) %>% 
-        arrange(local_date, ToD)) 
+  map(., ~.x %>%
+        complete(interval = seq(from = min(interval, na.rm = T), to = max(interval, na.rm = T), 1)) %>% 
+        complete(ToD, nesting(interval)) %>% filter(!is.na(ToD)) %>% 
+        fill(id) %>% 
+        arrange(interval, ToD)) 
+
+# test that the ordering happened correctly, crucial to next step:
+sum(map_lgl(ToD,~ all(.x$ToD == rep_len(levels(ToDfilter$ToD), length(.x$ToD))))) == 59
 
 lag4 <- ToD %>%
   map_df(., function(x) {
-    mutate(x,
+    
+    df <- mutate(x,
            dx = c(diff(x), NA),
            dy = c(diff(y), NA),
            dt = sqrt(dx^2 + dy^2),
@@ -67,10 +73,37 @@ lag4 <- ToD %>%
            dt2 = sqrt(dx2^2 + dy2^2),
            dx4 = c(diff(x, lag = 4), NA, NA, NA, NA),
            dy4 = c(diff(y, lag = 4), NA, NA, NA, NA),
-           dt4 = sqrt(dx4^2 + dy4^2),
-           n = n()
+           dt4 = sqrt(dx4^2 + dy4^2)
     )
+    
+    # extracting true time between points
+    # being explicit about units is important. 
+    s <- diff(df$date)
+    s2 <- diff(df$date, lag = 2)
+    s4 <- diff(df$date, lag = 4)  
+    units(s) <- "hours"
+    units(s2) <- "hours"
+    units(s4) <- "hours"
+    
+    df$time <- c(as.vector(s), NA)
+    df$time2 <- c(as.vector(s2), NA, NA)
+    df$time4 <- c(as.vector(s4), NA, NA, NA, NA)
+    
+    return(df)
   })
+
+### make sure time diffferences are as expected:
+mean(lag4$time, na.rm = T)
+range(lag4$time, na.rm = T)
+sd(lag4$time, na.rm = T)
+
+mean(lag4$time2, na.rm = T)
+sd(lag4$time2, na.rm = T)
+range(lag4$time2, na.rm = T)
+
+mean(lag4$time4, na.rm = T)
+range(lag4$time4, na.rm = T)
+sd(lag4$time4, na.rm = T)
 
 # identify individuals with consistent 12 hr fixes 
 con_12hr <- map(ToD, function(df) {
@@ -103,10 +136,10 @@ other_class <- filter(classes, Class == "Other") %>% pull(x)
 ks.test(dawn_class, other_class)
 
 ## Time of day points near water?
-buffers <- st_buffer(water_utm, 500)
+buffers <- st_buffer(water_utm, 250)
 water_pts <- st_intersection(buffers, 
                              st_as_sf(lag4, 
                                       coords = c("x", "y"), 
                                       crs = 32733, na.fail = F))
-water_pts %>% select(-n) %>% group_by(ToD) %>% tally()
+water_pts %>% group_by(ToD) %>% tally()
 
