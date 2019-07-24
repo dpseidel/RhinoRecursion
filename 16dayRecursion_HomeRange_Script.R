@@ -120,7 +120,7 @@ polymeta <- names(tumaps_sf) %>%
   rename(id = V1, year = V2, date_id = V3) %>%
   mutate(
     file = paste0( # match processed MODIS file names
-      "Processed/", year,
+      "~/Dropbox/Processed/", year,
       formatC(as.numeric(date_id), width = 3, flag = "0"), ".tif"
     ),
     list_name = names(tumaps_sf)
@@ -226,7 +226,7 @@ polymeta <- names(polys) %>%
     interval = paste0( year,
     formatC(as.numeric(date_id), width = 3, flag = "0")),
     file = paste0(
-      "Processed/", year,
+      "~/Dropbox/Processed/", year,
       formatC(as.numeric(date_id), width = 3, flag = "0"), ".tif"
     ),
     list_name = names(polys)
