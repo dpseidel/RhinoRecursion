@@ -127,6 +127,15 @@ chosen9 <- con_12hr[ids] %>%
   group_by(id) %>% 
   mutate(index = seq(1, n(), 1))
 
+### Periodicity test!
+chosen9 %>% split(.$id) %>% 
+  map_dbl(nrow)
+# a couple have 105-155 relocations but most < 100
+
+chosen9 %>% split(.$id) %>% 
+  map(function(x){ptest::ptestg(na.omit(x$dt2))})
+# rejected the null hypothesis of periodicity (@ alpha = .05) for 1 individual SAT2372.  
+
 ## KS test
 collapsed <- filter(lag4, !is.na(dt4)) %>%
   mutate(ToD2 = forcats::fct_collapse(ToD, dawn = "dawn", group_other = T))
