@@ -82,10 +82,11 @@ tumap_stats <- tibble(id = names(revis_prop), revis_prop, visited, avg_revis, sd
 
 cor(tumap_stats[,-1])
 
-cor(revis_prop, visited)
-cor(revis_prop[-6], visited[-6])  # 280 is an outlier... not sure why. 
+cor.test(revis_prop, visited)
+cor.test(revis_prop[-6], visited[-6])  # 280 is an outlier... not sure why. 
 
-cor(med_revis, visited)
+cor.test(med_revis, visited)
+cor.test(sd_revis, visited)
 
 # range size has a negative relationship with proportion revisted cells
 # i.e. smaller ranges are likely to revisited more of their range. 
@@ -98,4 +99,11 @@ top25rev <- map_dbl(tumaps_sf, ~filter(.x, nsv.604800 > 0)  %>%
 
 # the proportion of cells visited that gain the top 25% of returns, 
 # is fairly equal across individuals, and is not strongly correlated with range size. 
+top25rev/visited 
 cor(top25rev, visited)
+
+
+stats <- tibble(visited, revisited,  top25rev, revis_prop, 
+                avg_revis, sd_revis, med_revis, id = names(visited))
+
+summary(lm(visited ~ revis_prop, data = stats))

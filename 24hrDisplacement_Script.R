@@ -115,17 +115,30 @@ con_12hr <- map(ToD, function(df) {
 ids <- names(map_dbl(con_12hr, nrow)[map_dbl(con_12hr, nrow) > 60])
 
 chosen9 <- con_12hr[ids] %>%
-  map_df(., ~ mutate(.x,
+  map_df(., function(x){
+    
+    df <- mutate(x,
                      dx = c(diff(x), NA),
                      dy = c(diff(y), NA),
                      dt = sqrt(dx^2 + dy^2),
                      dx2 = c(diff(x, lag = 2), NA, NA),
                      dy2 = c(diff(y, lag = 2), NA, NA),
                      dt2 = sqrt(dx2^2 + dy2^2),
-                     n = n()
-  )) %>% 
+                     n = n())
+    
+    s <- diff(df$date)
+    s2 <- diff(df$date, lag = 2)
+    units(s) <- "hours"
+    units(s2) <- "hours"
+    
+    df$time <- c(as.vector(s), NA)
+    df$time2 <- c(as.vector(s2), NA, NA)
+    
+    return(df)
+  }) %>% 
   group_by(id) %>% 
-  mutate(index = seq(1, n(), 1))
+  mutate(index = seq(1, n(), 1), 
+         disphr = dt2/time2)
 
 ### Periodicity test!
 chosen9 %>% split(.$id) %>% 
@@ -133,22 +146,54 @@ chosen9 %>% split(.$id) %>%
 # a couple have 105-155 relocations but most < 100
 
 chosen9 %>% split(.$id) %>% 
-  map(function(x){ptest::ptestg(na.omit(x$dt2))})
+  map(function(x){ptest::ptestg(na.omit(x$disphr))})
 # rejected the null hypothesis of periodicity (@ alpha = .05) for 1 individual SAT2372.  
 
-## KS test
-collapsed <- filter(lag4, !is.na(dt4)) %>%
-  mutate(ToD2 = forcats::fct_collapse(ToD, dawn = "dawn", group_other = T))
-classes <- collapsed %>% dplyr::select(ToD2, dt4) %$% downSample(dt4, ToD2)
-dawn_class <- filter(classes, Class == "dawn") %>% pull(x)
-other_class <- filter(classes, Class == "Other") %>% pull(x)
-ks.test(dawn_class, other_class)
+# Pairwise:
+#dumbest way i can figure this out tonight... 
+x <- expand.grid(1:4, 1:4) %>% filter(Var1 != Var2)
+x[x[,2]>=x[,1],] 
+
+comb <- expand.grid(unique(levels(lag4$ToD)), unique(levels(lag4$ToD))) %>% 
+  filter(Var1 != Var2) %>% .[x[,2]>=x[,1],] %>% mutate_all(as.character())
+
+
+ToD_disp <- filter(lag4, !is.na(dt4)) %>%
+  mutate(disphr = dt4/time4) %>% 
+  select(ToD, disphr) %>% 
+  split(.$ToD) %>%
+  map(~pull(.x, disphr))
+
+results <- pmap_dbl(list(a = comb$Var1, b = comb$Var2), 
+                    function(a,b){
+                      suppressWarnings(ks.test(ToD_disp[[a]], ToD_disp[[b]])$p.value)
+                    }) %>% p.adjust(method = "bonferroni") 
+
+names(results) <- paste(comb$Var1, comb$Var2, sep =".")
+
+results %>% round(3) %>% knitr::kable("latex")
 
 ## Time of day points near water?
-buffers <- st_buffer(water_utm, 250)
-water_pts <- st_intersection(buffers, 
-                             st_as_sf(lag4, 
-                                      coords = c("x", "y"), 
-                                      crs = 32733, na.fail = F))
-water_pts %>% group_by(ToD) %>% tally()
+water_sens <- function(dist) {
+  buffers <- st_buffer(water_utm, dist)
+  water_pts <- st_intersection(buffers, 
+                               st_as_sf(lag4, 
+                                        coords = c("x", "y"), 
+                                        crs = 32733, na.fail = F))
+  water_pts %>% st_set_geometry(NULL) %>% group_by(ToD) %>% tally()
+}
 
+
+Cairo::CairoPNG(filename = "waterbuffer.png", width = 1200, height = 1000,
+                res = 180)
+map_df(c("100" = 100, "250" = 250, "500" = 500, "750" = 750,  "1000" = 1000), 
+       water_sens, .id = "dist") %>% 
+  ggplot(., aes(x = as.numeric(dist), y = n, color = ToD)) + 
+  geom_point() +
+  geom_path() + 
+  theme_minimal() +
+  labs(x = "Buffer distance (m) from watering hole", 
+       y = "Number of fixes",
+       title = "Influence of time of day on distance to watering hole") +
+  theme(plot.title = element_text(hjust = .5))
+dev.off()
