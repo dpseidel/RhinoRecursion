@@ -135,11 +135,11 @@ mod_biweekly <- biweekly_null %>%
 
 mod1 <- glm(nsv.43200 ~ nullNDVI_id, data = mod_biweekly, family = "poisson") 
 mod2 <- glm(nsv.43200 ~ meanNDVI, data = mod_biweekly, family = "poisson") 
-mod3 <- glm(nsv.43200 ~ poly(meanNDVI, 2), data = mod_biweekly, family = "poisson") 
+mod3 <- glm(nsv.43200 ~ poly(nullNDVI_id,2), data = mod_biweekly, family = "poisson") 
+mod4 <- glm(nsv.43200 ~ poly(meanNDVI, 2), data = mod_biweekly, family = "poisson") 
 
-
-anova(mod1, mod2, mod3)
-AIC(mod1, mod2, mod3)
+anova(mod1, mod2, mod3, mod4)
+AIC(mod1, mod2, mod3, mod4)
 
 Cairo::CairoPNG(filename = "quad.png", width = 1200, height = 1000,
                 res = 180)
@@ -154,4 +154,58 @@ mod_biweekly %>%
 ) +
   theme_minimal() +
   theme(plot.title = element_text(hjust = .5))
+dev.off()
+
+
+### Replicate Fig 7 - Side by Side
+p <- filter(biweekly_null, nsv.43200 > 1) %>%
+  ggplot(aes(y = nsv.43200, x = meanNDVI * .0001)) +
+  stat_bin2d(aes(fill = log(stat(count))), binwidth = c(.05, 1)) +
+  # stat_bin2d(aes(color = ..count..), size = 1, bins = 30) +
+  scale_fill_gradient("Count",
+                      low = "#c6dbef", high = "#08306b",
+                      labels = function(x) {
+                        round(exp(1)^x)
+                      }
+  ) +
+  # geom_jitter(size = .6, alpha = .3) +
+  # scale_color_viridis_c(option="inferno")+
+  labs(
+    y = "Number of Separate Visits",
+    x = "Average NDVI",
+    title = "Relationship between 16-day revisitation and grid cell NDVI"
+  
+    ) +
+  theme_minimal() +
+  theme(plot.title = element_text(hjust = .5), 
+        legend.position = "None")
+
+p2 <- filter(biweekly_null, nsv.43200 > 1) %>%
+  ggplot(aes(y = nsv.43200, x = nullNDVI_id * .0001)) +
+  stat_bin2d(aes(fill = log(stat(count))), binwidth = c(.05, 1)) +
+  # stat_bin2d(aes(color = ..count..), size = 1, bins = 30) +
+  scale_fill_gradient("Count",
+                      low = "#c6dbef", high = "#08306b",
+                      labels = function(x) {
+                        round(exp(1)^x)
+                      }
+  ) +
+  scale_x_continuous(breaks = c(0,.25, .50, .75)) +
+  # geom_jitter(size = .6, alpha = .3) +
+  # scale_color_viridis_c(option="inferno")+
+  labs(
+    y = "",
+    x = "Average NDVI",
+    title = "Relationship between 16-day revisitation and grid cell NDVI", 
+    subtitle = "NULL MODEL") +
+  theme_minimal() +
+  theme(plot.title = element_text(hjust = .5), 
+        plot.subtitle = element_text(hjust =.5))
+
+library(patchwork)
+
+Cairo::CairoPNG(filename = "Fig7_SidebySide.png", width = 1200, height = 600,
+                res = 100)
+p + p2
+
 dev.off()

@@ -8,7 +8,6 @@ library(stmove) # package not available on CRAN, see github.com/dpseidel/stmove
 library(ggsn) # for spatial scale and coordinate arrow
 
 ########### Source Analysis Scripts ##########
-source("DataParsing_Script.R") # defines all_rhinos, namib_eco
 source("24hrDisplacement_Script.R") # defines: chosen9, lag4, ToD
 source("16dayRecursion_HomeRange_Script.R") # defines: biweekly, tumaps
 source("AnnualRecursion_Script.R") #  defines: df_3visits
@@ -68,7 +67,7 @@ chosen9 %>%
   facet_wrap(~id_f, scales = "free_x", ncol = 3) +
   theme_minimal() +
   labs(
-    title = "Dawn-Dawn standardized 24-displacement through time",
+    title = "Dawn-Dawn standardized 24-hr displacement through time",
     x = "Julian day", y = "24-hr displacement per hour (m/hr)",
     caption = "Note: A single observation approaching 1250 m/hr displacement was cut off from SAT277's graph to maintain comparable scales"
   ) +
@@ -104,7 +103,7 @@ chosen9 %>%
   facet_wrap(~id_f, ncol = 3) +
   theme_minimal() +
   labs(
-    title = "Dawn-Dawn stardardized 24-displacement through time",
+    title = "Dawn-Dawn standardized 24-hr displacement through time",
     x = "24-hr displacement per hour (m/hr)"
   ) +
   theme(plot.title = element_text(hjust = .5), legend.position = "none", panel.spacing = unit(1, "lines"),
