@@ -120,7 +120,7 @@ polymeta <- names(tumaps_sf) %>%
   rename(id = V1, year = V2, date_id = V3) %>%
   mutate(
     file = paste0( # match processed MODIS file names
-      "Processed/", year,
+      "~/Dropbox/Processed/", year,
       formatC(as.numeric(date_id), width = 3, flag = "0"), ".tif"
     ),
     list_name = names(tumaps_sf)
@@ -133,21 +133,10 @@ ordered_files <- polymeta[match(names(tumaps_sf), polymeta$list_name), ]
 # names(tumaps_sf) == ordered_files$list_name # yay! the same!
 
 plan(multiprocess)
-extracted_df <- future_pmap_dfr(
+biweekly <- future_pmap_dfr(
   list(polys = tumaps_sf, file = ordered_files$file),
   extract_NDVI
 )
-
-# Etosha Salt Pan results in missing values in some satellite imagery: set these to -10000
-# and handle appropriately for summary statistics
-biweekly <- extracted_df %>%
-  mutate(
-    meanNDVI = ifelse(is.na(meanNDVI), -10000, meanNDVI),
-    sdNDVI = ifelse(is.na(sdNDVI), 0, meanNDVI),
-    maxNDVI = ifelse(is.na(maxNDVI), -10000, maxNDVI),
-    minNDVI = ifelse(is.na(minNDVI), -10000, minNDVI),
-    medianNDVI = ifelse(is.na(medianNDVI), -10000, medianNDVI)
-  )
 
 ### Summary Statistics
 biweekly %>% select(id, date_id) %>% distinct() %>% nrow()
@@ -158,7 +147,8 @@ biweekly %>%
   summarise(
     mean_nsv = mean(nsv.43200), sd_nsv = sd(nsv.43200),
     mean_mlnv = mean(mnlv.43200), sd_mnlv = sd(mnlv.43200),
-    mean_ndvi = mean(meanNDVI * .0001), sd_NDVI = sd(sdNDVI * .0001)
+    mean_ndvi = mean(meanNDVI * .0001, na.rm = T), 
+    sd_NDVI = sd(sdNDVI * .0001, na.rm = T)
   )
 
 ########  16 day Home Range constuction & NDVI Analysis ########
@@ -226,7 +216,7 @@ polymeta <- names(polys) %>%
     interval = paste0( year,
     formatC(as.numeric(date_id), width = 3, flag = "0")),
     file = paste0(
-      "Processed/", year,
+      "~/Dropbox/Processed/", year,
       formatC(as.numeric(date_id), width = 3, flag = "0"), ".tif"
     ),
     list_name = names(polys)
@@ -239,14 +229,14 @@ extracted_UDs <- pmap_df(list(polys = polys_by_interval,
                              file = unique(polymeta$file)), 
                         extract_NDVI) 
 
-scaled <- extracted_UDs %>% 
+scaledk <- extracted_UDs %>% 
   mutate(iso.level = as.factor(iso.level), 
          date_id = as.character(date_id),
          meanNDVI = meanNDVI *.0001,
          logarea = log(area))%>% 
   rename(met = method)
 
-scaled_k90 <- scaled %>% filter(met == "klocoh", iso.level == 90)
+scaled_k90 <- scaledk %>% filter(met == "klocoh", iso.level == 90)
 
 GLM <- gls(logarea ~ meanNDVI, data = scaled_k90, method = "ML", na.action = na.omit)
 lmm <- lme(logarea ~ meanNDVI, data = scaled_k90,

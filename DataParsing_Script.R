@@ -12,14 +12,14 @@ conflicted::conflict_prefer("filter", "dplyr")
 
 # Metadata regarding file index and location of MODIS imagery
 # MODIS imagery is freely available from NASA.gov
-filemetadata <- read_csv("MODIS_metadata.csv")
+filemetadata <- read_csv("Data/MODIS_metadata.csv")
 
 # downloaded from http://ecoregions2017.appspot.com/, Licensed under CC-BY 4.0
-ecoregions <- read_sf("Ecoregions2017.shp")
+ecoregions <- read_sf("Data/Ecoregions2017.shp")
 
 # functional water data - available upon reasonable request
 # not public in order to protect endangered species
-water_utm <- st_read("functional water.shp", crs = 4326) %>%
+water_utm <- st_read("Data/functional water.shp", crs = 4326) %>%
   st_transform(32733)
 
 # rhino data - available upon reasonable request

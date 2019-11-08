@@ -7,7 +7,12 @@ source("DataParsing_Script.R")
 library(caret)
 
 ## Time of Day displacement analysis
-ToDfilter <- all_rhinos  %>% st_set_geometry(NULL) %>% 
+sampling_days <- c(seq.Date(from = ymd("2011-10-19"), to = ymd("2014-01-24"), 1), 
+                   seq.Date(from = ymd("2017-06-20"), to = ymd("2018-11-29"), 1))
+intervals <- interval(start = ymd_hm(paste(sampling_days - 1, "22:30")), 
+                      end = ymd_hm(paste(sampling_days, "22:30")))
+
+ToDfilter <- all_rhinos %>% st_set_geometry(NULL) %>% 
   mutate(rnd_hour = hour(round_date(date, unit = "1 hour")), 
          ToD = case_when(
            rnd_hour %in% c(23, 0:3) ~ "mid-night",
@@ -23,29 +28,43 @@ ToDfilter <- all_rhinos  %>% st_set_geometry(NULL) %>%
            rnd_hour %in% 17:21 ~ 19,
            TRUE ~ 0
          ),
-         offset_hour = ymd_hms(paste(local_date, local_time)) - 
-           ymd_h(paste(local_date, rnd_hour)),
-         offset_ToD = 
-           ymd_hms(paste(local_date, local_time)) - 
-           ymd_h(paste(local_date, ToD_est))) %>% 
+         offset_hour = case_when(
+           rnd_hour == 0 & hour(date) == 23 ~ difftime(ymd_hms(paste(local_date, local_time)), 
+                                                       ymd_h(paste(local_date + 1, rnd_hour)), 
+                                                       units = "secs"), 
+           TRUE ~ difftime(ymd_hms(paste(local_date, local_time)),
+                           ymd_h(paste(local_date, rnd_hour)),
+                           units = "secs") 
+         ),
+         offset_ToD = case_when(
+           rnd_hour %in% c(0, 23) & hour(date) != 0 ~ difftime(ymd_hms(paste(local_date, local_time)), 
+                                                               ymd_h(paste(local_date + 1, ToD_est)), 
+                                                               units = "secs"), 
+           TRUE ~ difftime(ymd_hms(paste(local_date, local_time)),
+                           ymd_h(paste(local_date, ToD_est)),
+                           units = "secs") 
+         )) %>% 
   filter(ToD != "other") %>% 
-  group_by(id, local_date, ToD) %>% 
+  mutate(interval = map_dbl(date, ~which(.x %within% intervals))) %>% 
+  group_by(id, interval, ToD) %>%  
   mutate(closest =  abs(as.numeric(offset_ToD)) == min(abs(as.numeric(offset_ToD)))) %>% 
   filter(closest) %>% ungroup() %>% 
   mutate(ToD = readr::parse_factor(ToD, ordered = T, levels = c("mid-night", "dawn", "mid-day", "dusk")))
 
 ToD <- ToDfilter %>% split(.$id) %>% 
-  map(., ~.x %>% 
-        complete(local_date = seq.Date(from = min(local_date, na.rm = T), to = max(local_date, na.rm = T), 1)) %>% 
-        complete(ToD, nesting(local_date)) %>% filter(!is.na(ToD)) %>% 
-        arrange(local_date, ToD)) 
+  map(., ~.x %>%
+        complete(interval = seq(from = min(interval, na.rm = T), to = max(interval, na.rm = T), 1)) %>% 
+        complete(ToD, nesting(interval)) %>% filter(!is.na(ToD)) %>% 
+        fill(id) %>% 
+        arrange(interval, ToD)) 
+
+# test that the ordering happened correctly, crucial to next step:
+sum(map_lgl(ToD,~ all(.x$ToD == rep_len(levels(ToDfilter$ToD), length(.x$ToD))))) == 59
 
 lag4 <- ToD %>%
-  keep(., function(x) {
-    na.omit(unique(x$id)) != "SAT645"
-  }) %>% # drop 645, too short, throws error.
   map_df(., function(x) {
-    mutate(x,
+    
+    df <- mutate(x,
            dx = c(diff(x), NA),
            dy = c(diff(y), NA),
            dt = sqrt(dx^2 + dy^2),
@@ -54,10 +73,37 @@ lag4 <- ToD %>%
            dt2 = sqrt(dx2^2 + dy2^2),
            dx4 = c(diff(x, lag = 4), NA, NA, NA, NA),
            dy4 = c(diff(y, lag = 4), NA, NA, NA, NA),
-           dt4 = sqrt(dx4^2 + dy4^2),
-           n = n()
+           dt4 = sqrt(dx4^2 + dy4^2)
     )
+    
+    # extracting true time between points
+    # being explicit about units is important. 
+    s <- diff(df$date)
+    s2 <- diff(df$date, lag = 2)
+    s4 <- diff(df$date, lag = 4)  
+    units(s) <- "hours"
+    units(s2) <- "hours"
+    units(s4) <- "hours"
+    
+    df$time <- c(as.vector(s), NA)
+    df$time2 <- c(as.vector(s2), NA, NA)
+    df$time4 <- c(as.vector(s4), NA, NA, NA, NA)
+    
+    return(df)
   })
+
+### make sure time diffferences are as expected:
+mean(lag4$time, na.rm = T)
+range(lag4$time, na.rm = T)
+sd(lag4$time, na.rm = T)
+
+mean(lag4$time2, na.rm = T)
+sd(lag4$time2, na.rm = T)
+range(lag4$time2, na.rm = T)
+
+mean(lag4$time4, na.rm = T)
+range(lag4$time4, na.rm = T)
+sd(lag4$time4, na.rm = T)
 
 # identify individuals with consistent 12 hr fixes 
 con_12hr <- map(ToD, function(df) {
@@ -69,31 +115,85 @@ con_12hr <- map(ToD, function(df) {
 ids <- names(map_dbl(con_12hr, nrow)[map_dbl(con_12hr, nrow) > 60])
 
 chosen9 <- con_12hr[ids] %>%
-  map_df(., ~ mutate(.x,
+  map_df(., function(x){
+    
+    df <- mutate(x,
                      dx = c(diff(x), NA),
                      dy = c(diff(y), NA),
                      dt = sqrt(dx^2 + dy^2),
                      dx2 = c(diff(x, lag = 2), NA, NA),
                      dy2 = c(diff(y, lag = 2), NA, NA),
                      dt2 = sqrt(dx2^2 + dy2^2),
-                     n = n()
-  )) %>% 
+                     n = n())
+    
+    s <- diff(df$date)
+    s2 <- diff(df$date, lag = 2)
+    units(s) <- "hours"
+    units(s2) <- "hours"
+    
+    df$time <- c(as.vector(s), NA)
+    df$time2 <- c(as.vector(s2), NA, NA)
+    
+    return(df)
+  }) %>% 
   group_by(id) %>% 
-  mutate(index = seq(1, n(), 1))
+  mutate(index = seq(1, n(), 1), 
+         disphr = dt2/time2)
 
-## KS test
-collapsed <- filter(lag4, !is.na(dt4)) %>%
-  mutate(ToD2 = forcats::fct_collapse(ToD, dawn = "dawn", group_other = T))
-classes <- collapsed %>% dplyr::select(ToD2, dt4) %$% downSample(dt4, ToD2)
-dawn_class <- filter(classes, Class == "dawn") %>% pull(x)
-other_class <- filter(classes, Class == "Other") %>% pull(x)
-ks.test(dawn_class, other_class)
+### Periodicity test!
+chosen9 %>% split(.$id) %>% 
+  map_dbl(nrow)
+# a couple have 105-155 relocations but most < 100
+
+chosen9 %>% split(.$id) %>% 
+  map(function(x){ptest::ptestg(na.omit(x$disphr))})
+# rejected the null hypothesis of periodicity (@ alpha = .05) for 1 individual SAT2372.  
+
+# Pairwise:
+#dumbest way i can figure this out tonight... 
+x <- expand.grid(1:4, 1:4) %>% filter(Var1 != Var2)
+x[x[,2]>=x[,1],] 
+
+comb <- expand.grid(unique(levels(lag4$ToD)), unique(levels(lag4$ToD))) %>% 
+  filter(Var1 != Var2) %>% .[x[,2]>=x[,1],] %>% mutate_all(as.character())
+
+
+ToD_disp <- filter(lag4, !is.na(dt4)) %>%
+  mutate(disphr = dt4/time4) %>% 
+  select(ToD, disphr) %>% 
+  split(.$ToD) %>%
+  map(~pull(.x, disphr))
+
+results <- pmap_dbl(list(a = comb$Var1, b = comb$Var2), 
+                    function(a,b){
+                      suppressWarnings(ks.test(ToD_disp[[a]], ToD_disp[[b]])$p.value)
+                    }) %>% p.adjust(method = "bonferroni") 
+
+names(results) <- paste(comb$Var1, comb$Var2, sep =".")
+
+results %>% round(3) %>% knitr::kable("latex")
 
 ## Time of day points near water?
-buffers <- st_buffer(water_utm, 500)
-water_pts <- st_intersection(buffers, 
-                             st_as_sf(lag4, 
-                                      coords = c("x", "y"), 
-                                      crs = 32733, na.fail = F))
-water_pts %>% select(-n) %>% group_by(ToD) %>% tally()
+water_sens <- function(dist) {
+  buffers <- st_buffer(water_utm, dist)
+  water_pts <- st_intersection(buffers, 
+                               st_as_sf(lag4, 
+                                        coords = c("x", "y"), 
+                                        crs = 32733, na.fail = F))
+  water_pts %>% st_set_geometry(NULL) %>% group_by(ToD) %>% tally()
+}
 
+
+Cairo::CairoPNG(filename = "waterbuffer.png", width = 1200, height = 1000,
+                res = 180)
+map_df(c("100" = 100, "250" = 250, "500" = 500, "750" = 750,  "1000" = 1000), 
+       water_sens, .id = "dist") %>% 
+  ggplot(., aes(x = as.numeric(dist), y = n, color = ToD)) + 
+  geom_point() +
+  geom_path() + 
+  theme_minimal() +
+  labs(x = "Buffer distance (m) from watering hole", 
+       y = "Number of fixes",
+       title = "Influence of time of day on distance to watering hole") +
+  theme(plot.title = element_text(hjust = .5))
+dev.off()

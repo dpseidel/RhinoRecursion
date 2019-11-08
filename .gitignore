@@ -3,3 +3,6 @@
 .Rhistory
 *.Rproj
 .DS_Store
+Data/
+Figures/
+Supp Figures/
